@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "./index.js";
 
-const origin = "https://example.github.io";
+const origin = "https://mohamedabofayz.github.io/NSK-Platform-Solutions-/";
 const env = {
   ALLOWED_ORIGIN: origin,
   GITHUB_TOKEN: "test-token",
