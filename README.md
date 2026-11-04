@@ -1,1 +1,36 @@
-# NSK-Platform-Solutions-
+# متتبع أكواد تحدي نسك
+
+واجهة عربية خفيفة لاستخراج معرّف نسك من النص الملصق، مع منع التكرار محلياً في المتصفح وتسجيل الدعم عبر GitHub.
+
+## البنية والأمان
+
+تُستضاف الواجهة الثابتة على GitHub Pages. لا يمكن استدعاء GitHub API بأمان مباشرة من صفحة عامة، لذلك يتولى `worker/index.js` استقبال الرمز وإنشاء Issue في مستودع GitHub. يظل رمز الوصول السري في إعدادات Cloudflare Worker ولا يصل إلى المتصفح.
+
+يحتوي كل سجل على معرّف الرمز ووقت تسجيله فقط، وتكون Issues مرئية للعامة إذا كان المستودع عاماً. يستخدم Cloudflare عنوان IP الوارد للحد من الطلبات (10 محاولات في الدقيقة لكل عنوان)؛ لا يُرسل العنوان إلى GitHub. لا ترسلوا أسماء أو أرقاماً أو أي معلومات شخصية. منع التكرار عبر `localStorage` بسيط على مستوى المتصفح ويمكن تجاوزه بمسح بيانات الموقع أو استخدام جهاز آخر؛ ليس ضماناً ضد الاحتيال.
+
+## الإعداد والنشر
+
+1. انشر محتويات المستودع على GitHub Pages.
+2. أنشئ Fine-grained Personal Access Token بصلاحية `Issues: Read and write` للمستودع المستهدف فقط.
+3. ثبّت Wrangler ثم انشر العامل:
+
+	```sh
+	cd worker
+	npx wrangler secret put GITHUB_TOKEN
+	npx wrangler deploy
+	```
+
+	أدخل الرمز عند مطالبة Wrangler. لا تضعه في ملفات الواجهة أو Git.
+4. اضبط المتغيرات في إعدادات العامل في Cloudflare:
+	- `GITHUB_OWNER`: مالك المستودع.
+	- `GITHUB_REPO`: اسم المستودع الذي ستُنشأ فيه Issues.
+	- `ALLOWED_ORIGIN`: أصل GitHub Pages فقط، مثل `https://owner.github.io`، دون مسار.
+5. في `index.html`، عيّن `content` في وسم `meta` ذي الاسم `api-endpoint` إلى عنوان العامل المنشور مع المسار `/support`، مثلاً `https://nusuk-code-tracker.<account>.workers.dev/support`.
+
+## التطوير والاختبار
+
+```sh
+node --test worker/index.test.js
+```
+
+يمكن معاينة الواجهة محلياً عبر أي خادم ملفات ثابت. لن يعمل الإرسال حتى إعداد عنوان العامل وقيم Cloudflare أعلاه.
