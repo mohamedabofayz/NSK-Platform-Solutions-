@@ -7,14 +7,20 @@ const extractStatus = document.querySelector("#extract-status");
 const charCount = document.querySelector("#char-count");
 const codesList = document.querySelector("#codes-list");
 const codesStatus = document.querySelector("#codes-status");
+const totalCodesCount = document.querySelector("#codes-total");
+const availableCodesCount = document.querySelector("#codes-available");
+const openedCodesCount = document.querySelector("#codes-opened");
 const codesViewport = document.querySelector("#codes-viewport");
 const previousCodesButton = document.querySelector("#codes-prev");
 const nextCodesButton = document.querySelector("#codes-next");
 const endpoint = document.querySelector('meta[name="api-endpoint"]')?.content.trim();
 const codesEndpoint = endpoint?.replace(/\/support\/?$/, "/codes");
 const storageKey = "nusuk-supported-codes-v1";
+const openedStorageKey = "nusuk-opened-codes-v1";
 const codePattern = /\bNG-[A-Za-z0-9]{8,}\b/i;
 let currentCardIndex = 0;
+let totalCodes = 0;
+const openedCodes = getOpenedCodes();
 
 function extractCode(text) {
   return text.match(codePattern)?.[0] ?? "";
@@ -28,6 +34,30 @@ function setFormMessage(text, state = "") {
 function getSubmittedCodes() {
   const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
   return Array.isArray(stored) ? stored : [];
+}
+
+function getOpenedCodes() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(openedStorageKey) || "[]");
+    return new Set(Array.isArray(stored)
+      ? stored.filter((code) => typeof code === "string").map((code) => code.toLowerCase())
+      : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function updateCodeStats(total, available) {
+  const format = (value) => new Intl.NumberFormat("ar").format(value);
+  totalCodesCount.textContent = format(total);
+  availableCodesCount.textContent = format(available);
+  openedCodesCount.textContent = format(Math.max(0, total - available));
+}
+
+function updateCardControls() {
+  const disabled = codesList.children.length <= 1;
+  previousCodesButton.disabled = disabled;
+  nextCodesButton.disabled = disabled;
 }
 
 function createFacebookCard() {
@@ -76,6 +106,22 @@ function createCodeCard(code) {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = "فتح في نسك ↗";
+  link.addEventListener("click", () => {
+    openedCodes.add(code.toLowerCase());
+    try {
+      localStorage.setItem(openedStorageKey, JSON.stringify([...openedCodes]));
+    } catch {
+      // Keep the current view responsive when browser storage is unavailable.
+    }
+    item.remove();
+    currentCardIndex = Math.min(currentCardIndex, Math.max(0, codesList.children.length - 1));
+    const available = codesList.querySelectorAll(".code-card").length;
+    updateCodeStats(totalCodes, available);
+    codesStatus.textContent = available
+      ? `${new Intl.NumberFormat("ar").format(available)} كود متاح`
+      : "فتحت جميع الأكواد على هذا الجهاز.";
+    updateCardControls();
+  });
   item.append(label, codeLabel, link);
   return item;
 }
@@ -92,6 +138,7 @@ nextCodesButton.addEventListener("click", () => moveCards(1));
 
 async function loadCodes() {
   codesList.replaceChildren(createFacebookCard());
+  updateCardControls();
   currentCardIndex = 0;
   if (!codesEndpoint || codesEndpoint === endpoint) {
     codesStatus.textContent = "قائمة الأكواد غير مهيأة حالياً.";
@@ -110,15 +157,26 @@ async function loadCodes() {
       if (!uniqueCodes.has(entry.code.toLowerCase())) uniqueCodes.set(entry.code.toLowerCase(), entry.code);
     }
 
-    const items = [...uniqueCodes.values()].map(createCodeCard);
+    const codes = [...uniqueCodes.values()];
+    totalCodes = codes.length;
+    const items = codes
+      .filter((code) => !openedCodes.has(code.toLowerCase()))
+      .map(createCodeCard);
 
     codesList.replaceChildren(...items, createFacebookCard());
     currentCardIndex = 0;
     codesViewport.scrollTo({ left: 0 });
+    updateCodeStats(totalCodes, items.length);
+    updateCardControls();
     codesStatus.textContent = items.length
       ? `${new Intl.NumberFormat("ar").format(items.length)} كود متاح`
-      : "لا توجد أكواد مسجلة بعد.";
+      : totalCodes
+        ? "فتحت جميع الأكواد على هذا الجهاز."
+        : "لا توجد أكواد مسجلة بعد.";
   } catch {
+    totalCodesCount.textContent = "—";
+    availableCodesCount.textContent = "—";
+    openedCodesCount.textContent = "—";
     codesStatus.textContent = "تعذّر تحميل الأكواد. حاول تحديث الصفحة.";
   }
 }
