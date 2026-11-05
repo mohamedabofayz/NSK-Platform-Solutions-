@@ -3,8 +3,8 @@
 
 // ⚙️ CONFIG — adjust to your Cloudflare Worker endpoint
 const API = {
-  register: "/api/register",   // POST { code, message } → { ok, id, url }
-  codes:    "/api/codes",      // GET → { codes: [{ id, code, url, createdAt, name? }] }
+ register: "https://nusuk-code-tracker.mahamedabofayz.workers.dev/support",
+  codes:    "https://nusuk-code-tracker.mahamedabofayz.workers.dev/codes", // 
 };
 const STORAGE_KEY = "nsk-used-codes"; // localStorage key for "used" markers
 
