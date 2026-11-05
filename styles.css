@@ -469,6 +469,7 @@ body > * { position: relative; z-index: 1; }
 .deck-empty {
   position: absolute;
   inset: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
