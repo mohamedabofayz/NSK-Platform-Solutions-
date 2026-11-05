@@ -3,131 +3,130 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="سجّل دعمك لتحدي نسك عبر منصة NSK Platform Solutions — التحقق من الكود تلقائيًا وتسجيل الدعم في خطوة واحدة." />
-  <meta name="theme-color" content="#234b39" />
-  <title>NSK Platform Solutions — سجّل دعمك</title>
-  <meta name="api-endpoint" content="https://nusuk-code-tracker.mahamedabofayz.workers.dev/support">
+  <meta name="theme-color" content="#0F3D2E" />
+  <meta name="api-endpoint" content="https://nusuk-code-tracker.mahamedabofayz.workers.dev/support" />
+  <title>NSK Platform — سجّل دعمك</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap"
-    rel="stylesheet"
-  />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page">
-    <!-- ============ Header ============ -->
-    <header class="site-header">
-      <a href="./" class="brand" aria-label="NSK Platform Solutions — الصفحة الرئيسية">
-        <span class="brand-mark" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 6 2 12l6 6" />
-            <path d="m16 6 6 6-6 6" />
-          </svg>
+
+  <!-- ============ Header ============ -->
+  <header class="site-header">
+    <a href="./" class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>NSK</strong>
+        <small>Platform Solutions</small>
+      </span>
+    </a>
+    <a class="header-link" href="#add-code">أضف كودك</a>
+  </header>
+
+  <!-- ============ Main ============ -->
+  <main class="app">
+
+    <!-- Card swiper -->
+    <section class="swiper" aria-label="أكواد الأصدقاء">
+      <div class="deck-wrap">
+        <div class="deck" id="deck" aria-live="polite">
+          <!-- Cards injected by app.js -->
+        </div>
+      </div>
+
+      <div class="deck-actions" id="deck-actions">
+        <button class="act act--skip" id="skip-btn" aria-label="تخطي الكود">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <button class="act act--open" id="open-btn" aria-label="فتح الرابط واستخدام الكود">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>
+      </div>
+
+      <p class="swipe-hint">اسحب <span class="chip chip--green">يمينًا للفتح</span> أو <span class="chip chip--red">يسارًا للتخطي</span></p>
+    </section>
+
+    <!-- Add your code -->
+    <section id="add-code" class="add-code">
+      <div class="add-code__head">
+        <h2>أضف كودك</h2>
+        <p>سجّل دعمك وشارك كودك مع بقية المجتمع</p>
+      </div>
+
+      <form id="add-form" novalidate>
+        <label for="code-input" class="sr-only">كودك أو رسالة التحدي</label>
+        <textarea id="code-input" rows="4" placeholder="الصق كود نسك أو رسالة التحدي هنا..." autocomplete="off" spellcheck="false"></textarea>
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span class="btn-label">تسجيل الدعم</span>
+          <span class="btn-spinner" hidden aria-hidden="true"></span>
+        </button>
+        <p class="form-message" id="form-message" hidden role="status"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>© <span id="year"></span> NSK Platform Solutions</span>
+    <span>صُنع بشغف لدعم المجتمع</span>
+  </footer>
+
+  <!-- ============ Card Templates ============ -->
+  <template id="tpl-code-card">
+    <article class="card" data-type="code">
+      <div class="card__top">
+        <span class="card__badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          كود دعم
         </span>
-        <span class="brand-name">NSK Platform Solutions</span>
+        <span class="card__index"></span>
+      </div>
+
+      <div class="card__body">
+        <div class="card__code"></div>
+        <p class="card__desc">استخدم هذا الكود لدعم صاحبه في تحدي نسك</p>
+      </div>
+
+      <div class="card__meta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="card__date"></span>
+      </div>
+
+      <a class="card__cta" target="_blank" rel="noopener noreferrer">
+        <span>فتح الرابط</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
       </a>
-      <nav class="site-nav" aria-label="التنقل الرئيسي">
-        <a href="#community">أكواد الأصدقاء</a>
-        <a href="#how">كيف يعمل</a>
-      </nav>
-    </header>
-
-    <main>
-      <!-- ============ Hero ============ -->
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow">تحدي نسك 2026</p>
-          <h1 id="hero-title">
-            سجّل دعمك،<br />
-            <span class="accent">بخطوة واحدة.</span>
-          </h1>
-          <p class="lead">
-            الصق كود نسك أو رسالة التحدي، وسنتحقق من الكود ونسجّل دعمك فورًا.
-            بدون تسجيل، بدون تعقيد.
-          </p>
-          <ol class="steps" aria-label="خطوات التسجيل">
-            <li class="step"><span class="step__num" aria-hidden="true">1</span>الصق الكود</li>
-            <li class="step"><span class="step__num" aria-hidden="true">2</span>تحقق تلقائي</li>
-            <li class="step"><span class="step__num" aria-hidden="true">3</span>سجّل الدعم</li>
-          </ol>
-        </div>
-
-        <!-- Entry panel -->
-        <section class="entry-panel" aria-labelledby="entry-title">
-          <div class="entry-panel__header">
-            <h2 id="entry-title">تسجيل الدعم</h2>
-            <span class="pill" id="status-pill" data-state="idle" aria-live="polite">جاهز</span>
-          </div>
-
-          <form id="entry-form" novalidate>
-            <label for="challenge-input">كود نسك أو رسالة التحدي</label>
-            <textarea
-              id="challenge-input"
-              name="challenge"
-              rows="5"
-              required
-              spellcheck="false"
-              autocomplete="off"
-              aria-describedby="challenge-hint form-message"
-              placeholder="مثال: كود التحدي NSK-2026-A7X9 أو الصق الرسالة كاملة…"
-            ></textarea>
-            <p class="field-hint" id="challenge-hint">
-              نستخرج الكود تلقائيًا من الرسالة. لا حاجة لقص أي شيء.
-            </p>
-
-            <button type="submit" class="btn btn--primary" id="submit-btn">
-              <span class="btn__label">تسجيل الدعم</span>
-              <span class="btn__spinner" hidden aria-hidden="true"></span>
-            </button>
-
-            <p class="form-message" id="form-message" data-state="info" role="status" aria-live="polite" hidden></p>
-          </form>
-        </section>
-      </section>
-
-      <!-- ============ Community codes ============ -->
-      <section id="community" class="community" aria-labelledby="community-title">
-        <div class="section-head">
-          <h2 id="community-title">أكواد الأصدقاء</h2>
-          <span class="count" id="community-count" aria-live="polite"></span>
-        </div>
-        <ul id="code-list" class="code-list" aria-live="polite" aria-busy="true">
-          <!-- Populated by app.js -->
-        </ul>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <span>© <span id="year"></span> NSK Platform Solutions</span>
-      <span>صُنع بشغف لدعم المجتمع</span>
-    </footer>
-  </div>
-
-  <!-- ============ Code card template ============ -->
-  <template id="code-card-template">
-    <li class="code-card">
-      <div class="code-card__main">
-        <code class="code-card__code"></code>
-        <div class="code-card__meta">
-          <span class="code-card__date"></span>
-        </div>
-      </div>
-      <div class="code-card__actions">
-        <a class="btn btn--ghost btn--sm code-card__open" target="_blank" rel="noopener noreferrer" aria-label="فتح رابط الكود في تبويب جديد">فتح الرابط</a>
-        <button type="button" class="btn btn--ghost btn--sm code-card__use">تم الاستخدام</button>
-      </div>
-    </li>
+    </article>
   </template>
 
-  <!-- ============ Skeleton template ============ -->
-  <template id="skeleton-template">
-    <li class="skeleton-card" aria-hidden="true">
-      <div class="skeleton skeleton--code"></div>
-      <div class="skeleton skeleton--meta"></div>
-      <div class="skeleton skeleton--btn"></div>
-    </li>
+  <template id="tpl-support-card">
+    <article class="card card--support" data-type="support">
+      <div class="support__icon">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H8v-2.9h2.5V9.8c0-2.5 1.5-3.9 3.7-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.3c-1.2 0-1.6.8-1.6 1.6v1.9H16l-.4 2.9h-2.1v7A10 10 0 0 0 22 12"/></svg>
+      </div>
+      <h3>تابعنا على فيسبوك</h3>
+      <p>ابقَ على اطلاع بأحدث الأكواد والتحديثات. دعمك يصنع الفرق.</p>
+      <a class="support__cta" target="_blank" rel="noopener noreferrer">
+        متابعة الآن
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <p class="support__note">NSK Platform Solutions</p>
+    </article>
+  </template>
+
+  <template id="tpl-empty">
+    <div class="deck-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <h3>انتهت الأكواد</h3>
+      <p>شكرًا لك على المرور! يمكنك إضافة كودك من الأسفل.</p>
+    </div>
   </template>
 
   <script src="app.js" type="module"></script>
