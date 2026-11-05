@@ -9,18 +9,14 @@ const codesList = document.querySelector("#codes-list");
 const codesStatus = document.querySelector("#codes-status");
 const totalCodesCount = document.querySelector("#codes-total");
 const availableCodesCount = document.querySelector("#codes-available");
-const openedCodesCount = document.querySelector("#codes-opened");
-const codesViewport = document.querySelector("#codes-viewport");
-const previousCodesButton = document.querySelector("#codes-prev");
-const nextCodesButton = document.querySelector("#codes-next");
+const usedCodesCount = document.querySelector("#codes-used");
 const endpoint = document.querySelector('meta[name="api-endpoint"]')?.content.trim();
 const codesEndpoint = endpoint?.replace(/\/support\/?$/, "/codes");
 const storageKey = "nusuk-supported-codes-v1";
-const openedStorageKey = "nusuk-opened-codes-v1";
+const usedStorageKey = "nusuk-used-codes-v1";
 const codePattern = /\bNG-[A-Za-z0-9]{8,}\b/i;
-let currentCardIndex = 0;
 let totalCodes = 0;
-const openedCodes = getOpenedCodes();
+const usedCodes = getUsedCodes();
 
 function extractCode(text) {
   return text.match(codePattern)?.[0] ?? "";
@@ -36,9 +32,9 @@ function getSubmittedCodes() {
   return Array.isArray(stored) ? stored : [];
 }
 
-function getOpenedCodes() {
+function getUsedCodes() {
   try {
-    const stored = JSON.parse(localStorage.getItem(openedStorageKey) || "[]");
+    const stored = JSON.parse(localStorage.getItem(usedStorageKey) || "[]");
     return new Set(Array.isArray(stored)
       ? stored.filter((code) => typeof code === "string").map((code) => code.toLowerCase())
       : []);
@@ -51,13 +47,7 @@ function updateCodeStats(total, available) {
   const format = (value) => new Intl.NumberFormat("ar").format(value);
   totalCodesCount.textContent = format(total);
   availableCodesCount.textContent = format(available);
-  openedCodesCount.textContent = format(Math.max(0, total - available));
-}
-
-function updateCardControls() {
-  const disabled = codesList.children.length <= 1;
-  previousCodesButton.disabled = disabled;
-  nextCodesButton.disabled = disabled;
+  usedCodesCount.textContent = format(Math.max(0, total - available));
 }
 
 function createFacebookCard() {
@@ -93,6 +83,8 @@ function createCodeCard(code) {
   const label = document.createElement("p");
   const codeLabel = document.createElement("strong");
   const link = document.createElement("a");
+  const actions = document.createElement("div");
+  const usedButton = document.createElement("button");
   const url = new URL("https://services.nusuk.sa/app");
   url.searchParams.set("p", "27");
   url.searchParams.set("id", code);
@@ -106,40 +98,33 @@ function createCodeCard(code) {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = "فتح في نسك ↗";
-  link.addEventListener("click", () => {
-    openedCodes.add(code.toLowerCase());
+  actions.className = "code-card-actions";
+  usedButton.className = "mark-used-button";
+  usedButton.type = "button";
+  usedButton.textContent = "تم الاستخدام";
+  usedButton.addEventListener("click", () => {
+    usedCodes.add(code.toLowerCase());
+    let saved = true;
     try {
-      localStorage.setItem(openedStorageKey, JSON.stringify([...openedCodes]));
+      localStorage.setItem(usedStorageKey, JSON.stringify([...usedCodes]));
     } catch {
-      // Keep the current view responsive when browser storage is unavailable.
+      saved = false;
     }
     item.remove();
-    currentCardIndex = Math.min(currentCardIndex, Math.max(0, codesList.children.length - 1));
     const available = codesList.querySelectorAll(".code-card").length;
     updateCodeStats(totalCodes, available);
     codesStatus.textContent = available
       ? `${new Intl.NumberFormat("ar").format(available)} كود متاح`
-      : "فتحت جميع الأكواد على هذا الجهاز.";
-    updateCardControls();
+      : "تم استخدام جميع الأكواد المتاحة على هذا الجهاز.";
+    if (!saved) codesStatus.textContent += " لن يُحفظ التغيير بعد إغلاق الصفحة.";
   });
-  item.append(label, codeLabel, link);
+  actions.append(link, usedButton);
+  item.append(label, codeLabel, actions);
   return item;
 }
 
-function moveCards(direction) {
-  const cards = codesList.children;
-  if (!cards.length) return;
-  currentCardIndex = (currentCardIndex + direction + cards.length) % cards.length;
-  cards[currentCardIndex].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-}
-
-previousCodesButton.addEventListener("click", () => moveCards(-1));
-nextCodesButton.addEventListener("click", () => moveCards(1));
-
 async function loadCodes() {
   codesList.replaceChildren(createFacebookCard());
-  updateCardControls();
-  currentCardIndex = 0;
   if (!codesEndpoint || codesEndpoint === endpoint) {
     codesStatus.textContent = "قائمة الأكواد غير مهيأة حالياً.";
     return;
@@ -160,23 +145,20 @@ async function loadCodes() {
     const codes = [...uniqueCodes.values()];
     totalCodes = codes.length;
     const items = codes
-      .filter((code) => !openedCodes.has(code.toLowerCase()))
+      .filter((code) => !usedCodes.has(code.toLowerCase()))
       .map(createCodeCard);
 
     codesList.replaceChildren(...items, createFacebookCard());
-    currentCardIndex = 0;
-    codesViewport.scrollTo({ left: 0 });
     updateCodeStats(totalCodes, items.length);
-    updateCardControls();
     codesStatus.textContent = items.length
       ? `${new Intl.NumberFormat("ar").format(items.length)} كود متاح`
       : totalCodes
-        ? "فتحت جميع الأكواد على هذا الجهاز."
+        ? "تم استخدام جميع الأكواد على هذا الجهاز."
         : "لا توجد أكواد مسجلة بعد.";
   } catch {
     totalCodesCount.textContent = "—";
     availableCodesCount.textContent = "—";
-    openedCodesCount.textContent = "—";
+    usedCodesCount.textContent = "—";
     codesStatus.textContent = "تعذّر تحميل الأكواد. حاول تحديث الصفحة.";
   }
 }
