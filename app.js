@@ -270,21 +270,41 @@ function formatDate(value) {
 }
 
 /* ================= Load ================= */
+function showLoadError(message) {
+  console.warn('[loadCodes] failed:', message);
+  $deck.replaceChildren($tplError.content.cloneNode(true));
+  $deck.querySelector('.deck-error p').textContent = message;
+  $deck.querySelector('.btn-retry').addEventListener('click', loadCodes);
+  $actions.hidden = true;
+}
+
 async function loadCodes() {
   showSkeleton();
   log('Loading codes from', API_CODES);
+  let res;
   try {
-    const res = await fetch(API_CODES, { headers: { Accept: 'application/json' } });
-    log('Response', res.status);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const list = Array.isArray(data.codes) ? data.codes : [];
-    buildDeck(list);
+    res = await fetch(API_CODES, { headers: { Accept: 'application/json' } });
   } catch (err) {
-    console.warn('[loadCodes] failed:', err.message);
-    $deck.replaceChildren($tplError.content.cloneNode(true));
-    $deck.querySelector('.btn-retry').addEventListener('click', loadCodes);
-    $actions.hidden = true;
+    showLoadError('تعذر الاتصال بخدمة الأكواد. تحقق من الشبكة ثم أعد المحاولة.');
+    return;
+  }
+
+  log('Response', res.status);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    showLoadError(data?.error || `خدمة الأكواد غير متاحة الآن (${res.status}).`);
+    return;
+  }
+  if (!Array.isArray(data?.codes)) {
+    showLoadError('وصل رد غير متوقع من خدمة الأكواد. أعد المحاولة بعد قليل.');
+    return;
+  }
+
+  try {
+    buildDeck(data.codes);
+  } catch (err) {
+    console.error('[loadCodes] render failed:', err);
+    showLoadError('تعذر تجهيز بطاقات الأكواد. أعد المحاولة بعد قليل.');
   }
 }
 
