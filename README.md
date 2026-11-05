@@ -24,7 +24,7 @@
 4. اضبط المتغيرات في إعدادات العامل في Cloudflare:
 	- `GITHUB_OWNER`: مالك المستودع.
 	- `GITHUB_REPO`: اسم المستودع الذي ستُنشأ فيه Issues.
-	- `ALLOWED_ORIGIN`: أصل GitHub Pages فقط، مثل `https://owner.github.io`، دون مسار.
+	- `ALLOWED_ORIGIN` مضبوط في `worker/wrangler.toml` على أصل GitHub Pages دون مسار. أعد نشر العامل بعد تغييره.
 5. في `index.html`، عيّن `content` في وسم `meta` ذي الاسم `api-endpoint` إلى عنوان العامل المنشور مع المسار `/support`، مثلاً `https://nusuk-code-tracker.<account>.workers.dev/support`.
 
 ## التطوير والاختبار
