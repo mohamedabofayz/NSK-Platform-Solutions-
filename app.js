@@ -15,30 +15,28 @@ const SWIPE_THRESHOLD = 110;
 const log = (...args) => console.log('[NSK]', ...args);
 
 /* ================= Code extraction ================= */
-const CODE_PATTERNS = [
-  /\bNSK[-_ ]?([A-Z0-9]{4,20})\b/i,
-  /\b([A-Z0-9]{6,20})\b/,
-];
+const CODE_PATTERN = /\bNG-[A-Z0-9]{8,}\b/i;
 
 function extractCode(text) {
   const t = String(text || '').trim();
-  if (!t) return null;
-  for (const re of CODE_PATTERNS) {
-    const m = t.match(re);
-    if (m) return (m[1] || m[0]).toUpperCase();
-  }
-  return null;
+  return t.match(CODE_PATTERN)?.[0] || null;
 }
 
 /* ================= Local storage ================= */
 function getUsed() {
-  try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); }
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return new Set(Array.isArray(stored)
+      ? stored.filter(code => typeof code === 'string').map(code => code.toLowerCase())
+      : []);
+  }
   catch { return new Set(); }
 }
 function markUsed(code) {
   const set = getUsed();
-  set.add(code);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+  set.add(code.toLowerCase());
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...set])); }
+  catch { log('Could not persist used code'); }
 }
 
 /* ================= DOM ================= */
@@ -56,6 +54,7 @@ const $msg      = document.getElementById('form-message');
 const $tplCode    = document.getElementById('tpl-code-card');
 const $tplSupport = document.getElementById('tpl-support-card');
 const $tplEmpty   = document.getElementById('tpl-empty');
+const $tplError   = document.getElementById('tpl-error');
 
 log('DOM ready', { $deck, $tplCode, $tplSupport });
 
@@ -91,7 +90,8 @@ function buildDeck(codeList) {
   const used = getUsed();
   const items = [];
 
-  codeList.forEach((c, i) => {
+  const availableCodes = codeList.filter(c => !used.has(c.code.toLowerCase()));
+  availableCodes.forEach((c, i) => {
     items.push({ type: 'code', ...c });
     if (i === 1) items.push({ type: 'support' });
   });
@@ -109,8 +109,6 @@ function buildDeck(codeList) {
       el.querySelector('.card__index').textContent = `${idx + 1} / ${items.length}`;
       const cta = el.querySelector('.card__cta');
       cta.href = item.url || '#';
-
-      if (used.has(item.code)) el.dataset.used = 'true';
 
       // CTA click → browser opens the link, we mark + swipe after a beat
       cta.addEventListener('click', (e) => {
@@ -283,12 +281,10 @@ async function loadCodes() {
     const list = Array.isArray(data.codes) ? data.codes : [];
     buildDeck(list);
   } catch (err) {
-    console.warn('[loadCodes] failed → demo:', err.message);
-    buildDeck([
-      { code: 'NSK-DEMO-0001', url: 'https://example.com/code/1', createdAt: new Date().toISOString() },
-      { code: 'NSK-DEMO-0002', url: 'https://example.com/code/2', createdAt: new Date().toISOString() },
-      { code: 'NSK-DEMO-0003', url: 'https://example.com/code/3', createdAt: new Date().toISOString() },
-    ]);
+    console.warn('[loadCodes] failed:', err.message);
+    $deck.replaceChildren($tplError.content.cloneNode(true));
+    $deck.querySelector('.btn-retry').addEventListener('click', loadCodes);
+    $actions.hidden = true;
   }
 }
 
