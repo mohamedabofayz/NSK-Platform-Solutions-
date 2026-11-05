@@ -1,239 +1,258 @@
-const form = document.querySelector("#support-form");
-const messageInput = document.querySelector("#message");
-const consentInput = document.querySelector("#consent");
-const submitButton = document.querySelector("#submit-button");
-const formMessage = document.querySelector("#form-message");
-const extractStatus = document.querySelector("#extract-status");
-const charCount = document.querySelector("#char-count");
-const codesList = document.querySelector("#codes-list");
-const codesStatus = document.querySelector("#codes-status");
-const totalCodesCount = document.querySelector("#codes-total");
-const availableCodesCount = document.querySelector("#codes-available");
-const usedCodesCount = document.querySelector("#codes-used");
-const endpoint = document.querySelector('meta[name="api-endpoint"]')?.content.trim();
-const codesEndpoint = endpoint?.replace(/\/support\/?$/, "/codes");
-const storageKey = "nusuk-supported-codes-v1";
-const usedStorageKey = "nusuk-used-codes-v1";
-const codePattern = /\bNG-[A-Za-z0-9]{8,}\b/i;
-let totalCodes = 0;
-const usedCodes = getUsedCodes();
+/* app.js — NSK Platform Solutions
+   Handles: extract → validate → submit → render (skeleton/empty/error). */
 
-function extractCode(text) {
-  return text.match(codePattern)?.[0] ?? "";
+// ⚙️ CONFIG — adjust to your Cloudflare Worker endpoint
+const API = {
+  register: "/api/register",   // POST { code, message } → { ok, id, url }
+  codes:    "/api/codes",      // GET → { codes: [{ id, code, url, createdAt, name? }] }
+};
+const STORAGE_KEY = "nsk-used-codes"; // localStorage key for "used" markers
+
+// 🔍 Code extraction — adjust regex to match Nusuk's real code format
+const CODE_PATTERNS = [
+  /\bNSK[-_ ]?([A-Z0-9]{4,20})\b/i,   // NSK-XXXX or NSK_XXXX
+  /\b([A-Z0-9]{6,20})\b/,             // Generic uppercase alphanumeric (6–20)
+];
+
+function extractCode(input) {
+  const text = String(input || "").trim();
+  if (!text) return null;
+  for (const re of CODE_PATTERNS) {
+    const m = text.match(re);
+    if (m) return (m[1] || m[0]).toUpperCase();
+  }
+  return null;
 }
 
-function setFormMessage(text, state = "") {
-  formMessage.textContent = text;
-  formMessage.dataset.state = state;
-}
-
-function getSubmittedCodes() {
-  const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
-  return Array.isArray(stored) ? stored : [];
-}
-
+// 🗂️ Local storage helpers
 function getUsedCodes() {
   try {
-    const stored = JSON.parse(localStorage.getItem(usedStorageKey) || "[]");
-    return new Set(Array.isArray(stored)
-      ? stored.filter((code) => typeof code === "string").map((code) => code.toLowerCase())
-      : []);
+    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
   } catch {
     return new Set();
   }
 }
-
-function updateCodeStats(total, available) {
-  const format = (value) => new Intl.NumberFormat("ar").format(value);
-  totalCodesCount.textContent = format(total);
-  availableCodesCount.textContent = format(available);
-  usedCodesCount.textContent = format(Math.max(0, total - available));
+function markUsed(code) {
+  const set = getUsedCodes();
+  set.add(code);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
 }
 
-function createFacebookCard() {
-  const item = document.createElement("li");
-  item.className = "follow-card";
-  const label = document.createElement("p");
-  const title = document.createElement("h3");
-  const description = document.createElement("p");
-  const link = document.createElement("a");
-  const mark = document.createElement("span");
+// 🖼️ UI references
+const $form    = document.getElementById("entry-form");
+const $input   = document.getElementById("challenge-input");
+const $btn     = document.getElementById("submit-btn");
+const $btnLbl  = $btn.querySelector(".btn__label");
+const $spinner = $btn.querySelector(".btn__spinner");
+const $pill    = document.getElementById("status-pill");
+const $msg     = document.getElementById("form-message");
+const $list    = document.getElementById("code-list");
+const $count   = document.getElementById("community-count");
+const $tplCard = document.getElementById("code-card-template");
+const $tplSk   = document.getElementById("skeleton-template");
 
-  label.className = "follow-kicker";
-  label.textContent = "خلّنا على تواصل";
-  title.textContent = "تابعني على فيسبوك";
-  description.textContent = "تابع جديد المبادرة وشارك أكواد الأصدقاء.";
-  link.className = "follow-link";
-  link.href = "https://www.facebook.com/p/mohamedabofayz";
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.setAttribute("aria-label", "تابعني على فيسبوك، يفتح في نافذة جديدة");
-  link.textContent = "متابعة";
-  mark.className = "facebook-mark";
-  mark.setAttribute("aria-hidden", "true");
-  mark.textContent = "f";
+document.getElementById("year").textContent = new Date().getFullYear();
 
-  item.append(label, title, description, link, mark);
-  return item;
+// 🎛️ State helpers
+function setPill(state, text) {
+  $pill.dataset.state = state;
+  $pill.textContent = text;
+}
+function showMessage(state, text) {
+  $msg.dataset.state = state;
+  $msg.textContent = text;
+  $msg.hidden = false;
+}
+function hideMessage() {
+  $msg.hidden = true;
+  $msg.textContent = "";
+}
+function setLoading(on) {
+  $btn.disabled = on;
+  $spinner.hidden = !on;
+  $btnLbl.textContent = on ? "جارٍ التسجيل…" : "تسجيل الدعم";
+  $input.disabled = on;
 }
 
-function createCodeCard(code) {
-  const item = document.createElement("li");
-  item.className = "code-card";
-  const label = document.createElement("p");
-  const codeLabel = document.createElement("strong");
-  const link = document.createElement("a");
-  const actions = document.createElement("div");
-  const usedButton = document.createElement("button");
-  const url = new URL("https://services.nusuk.sa/app");
-  url.searchParams.set("p", "27");
-  url.searchParams.set("id", code);
+// 🧾 Render helpers
+function renderSkeletons(count = 3) {
+  $list.innerHTML = "";
+  $list.setAttribute("aria-busy", "true");
+  for (let i = 0; i < count; i++) {
+    $list.appendChild($tplSk.content.cloneNode(true));
+  }
+}
 
-  label.className = "code-card-label";
-  label.textContent = "كود نسك متاح";
-  codeLabel.className = "code-value";
-  codeLabel.textContent = code;
-  link.className = "code-link";
-  link.href = url.href;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = "فتح في نسك ↗";
-  actions.className = "code-card-actions";
-  usedButton.className = "mark-used-button";
-  usedButton.type = "button";
-  usedButton.textContent = "تم الاستخدام";
-  usedButton.addEventListener("click", () => {
-    usedCodes.add(code.toLowerCase());
-    let saved = true;
-    try {
-      localStorage.setItem(usedStorageKey, JSON.stringify([...usedCodes]));
-    } catch {
-      saved = false;
+function renderEmpty() {
+  $list.innerHTML = "";
+  $list.setAttribute("aria-busy", "false");
+  const li = document.createElement("li");
+  li.className = "empty-state";
+  li.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <h3>لا توجد أكواد مسجلة بعد</h3>
+    <p>كن أول من يسجّل دعمه — الصق كودك في الأعلى وسيظهر هنا مباشرة.</p>
+  `;
+  $list.appendChild(li);
+}
+
+function renderError(message) {
+  $list.innerHTML = "";
+  $list.setAttribute("aria-busy", "false");
+  const li = document.createElement("li");
+  li.className = "empty-state";
+  li.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <h3>تعذّر تحميل الأكواد</h3>
+    <p>${message}</p>
+  `;
+  $list.appendChild(li);
+}
+
+function renderCodes(codes) {
+  const used = getUsedCodes();
+  $list.innerHTML = "";
+  $list.setAttribute("aria-busy", "false");
+  $count.textContent = `${codes.length} كود`;
+
+  if (!codes.length) return renderEmpty();
+
+  for (const item of codes) {
+    const node = $tplCard.content.cloneNode(true);
+    const li = node.querySelector(".code-card");
+    const codeEl = node.querySelector(".code-card__code");
+    const dateEl = node.querySelector(".code-card__date");
+    const openEl = node.querySelector(".code-card__open");
+    const useEl  = node.querySelector(".code-card__use");
+
+    codeEl.textContent = item.code;
+    dateEl.textContent = formatDate(item.createdAt);
+    openEl.href = item.url || "#";
+
+    if (used.has(item.code)) {
+      li.dataset.used = "true";
+      useEl.disabled = true;
+      useEl.textContent = "مُستخدَم";
+      useEl.setAttribute("aria-disabled", "true");
+    } else {
+      useEl.addEventListener("click", () => {
+        markUsed(item.code);
+        li.dataset.used = "true";
+        useEl.disabled = true;
+        useEl.textContent = "مُستخدَم";
+      });
     }
-    item.remove();
-    const available = codesList.querySelectorAll(".code-card").length;
-    updateCodeStats(totalCodes, available);
-    codesStatus.textContent = available
-      ? `${new Intl.NumberFormat("ar").format(available)} كود متاح`
-      : "تم استخدام جميع الأكواد المتاحة على هذا الجهاز.";
-    if (!saved) codesStatus.textContent += " لن يُحفظ التغيير بعد إغلاق الصفحة.";
-  });
-  actions.append(link, usedButton);
-  item.append(label, codeLabel, actions);
-  return item;
+
+    $list.appendChild(node);
+  }
 }
 
+function formatDate(value) {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    return new Intl.DateTimeFormat("ar", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
+  } catch {
+    return "";
+  }
+}
+
+// 🔄 Fetch registered codes
 async function loadCodes() {
-  codesList.replaceChildren(createFacebookCard());
-  if (!codesEndpoint || codesEndpoint === endpoint) {
-    codesStatus.textContent = "قائمة الأكواد غير مهيأة حالياً.";
+  renderSkeletons();
+  try {
+    const res = await fetch(API.codes, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const codes = Array.isArray(data.codes) ? data.codes : [];
+    renderCodes(codes);
+  } catch (err) {
+    console.error("[loadCodes]", err);
+    renderError("تحقق من اتصالك بالإنترنت ثم أعد تحميل الصفحة.");
+    $count.textContent = "";
+  }
+}
+
+// 🚀 Submit handler
+$form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideMessage();
+
+  const raw = $input.value;
+  const code = extractCode(raw);
+
+  if (!raw.trim()) {
+    $input.setAttribute("aria-invalid", "true");
+    showMessage("error", "الرجاء لصق الكود أو رسالة التحدي أولًا.");
+    $input.focus();
+    return;
+  }
+  if (!code) {
+    $input.setAttribute("aria-invalid", "true");
+    showMessage("error", "لم نعثر على كود صالح في النص. تأكد من لصق الرسالة كاملة أو الكود مباشرة.");
+    $input.focus();
     return;
   }
 
-  codesStatus.textContent = "جارٍ تحميل الأكواد...";
-  try {
-    const response = await fetch(codesEndpoint);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "تعذّر تحميل الأكواد.");
+  $input.removeAttribute("aria-invalid");
+  setLoading(true);
+  setPill("loading", "جارٍ التسجيل…");
+  showMessage("info", "جارٍ التحقق من الكود وتسجيل الدعم…");
 
-    const uniqueCodes = new Map();
-    for (const entry of result.codes || []) {
-      if (typeof entry.code !== "string" || !/^NG-[A-Za-z0-9]{8,}$/i.test(entry.code)) continue;
-      if (!uniqueCodes.has(entry.code.toLowerCase())) uniqueCodes.set(entry.code.toLowerCase(), entry.code);
+  try {
+    const res = await fetch(API.register, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ code, message: raw }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || `فشل الطلب (HTTP ${res.status})`);
     }
 
-    const codes = [...uniqueCodes.values()];
-    totalCodes = codes.length;
-    const items = codes
-      .filter((code) => !usedCodes.has(code.toLowerCase()))
-      .map(createCodeCard);
+    // Success
+    $input.value = "";
+    setPill("success", "تم بنجاح");
+    showMessage("success", `تم تسجيل دعمك للكود ${code}. شكرًا لك!`);
+    markUsed(code);
 
-    codesList.replaceChildren(...items, createFacebookCard());
-    updateCodeStats(totalCodes, items.length);
-    codesStatus.textContent = items.length
-      ? `${new Intl.NumberFormat("ar").format(items.length)} كود متاح`
-      : totalCodes
-        ? "تم استخدام جميع الأكواد على هذا الجهاز."
-        : "لا توجد أكواد مسجلة بعد.";
-  } catch {
-    totalCodesCount.textContent = "—";
-    availableCodesCount.textContent = "—";
-    usedCodesCount.textContent = "—";
-    codesStatus.textContent = "تعذّر تحميل الأكواد. حاول تحديث الصفحة.";
-  }
-}
-
-function updatePreview() {
-  const code = extractCode(messageInput.value);
-  extractStatus.textContent = code ? `الكود المستخرج: ${code}` : "سيظهر الكود المستخرج هنا";
-  extractStatus.dataset.state = code ? "found" : "";
-  charCount.textContent = `${new Intl.NumberFormat("ar").format(messageInput.value.length)} / ٤٠٠٠`;
-  if (formMessage.dataset.state === "error") setFormMessage("");
-}
-
-messageInput.addEventListener("input", updatePreview);
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setFormMessage("");
-
-  const code = extractCode(messageInput.value);
-  if (!code) {
-    extractStatus.textContent = "لم نعثر على كود صالح بصيغة NG-XXXXXXXX";
-    extractStatus.dataset.state = "invalid";
-    setFormMessage("تحقق من النص؛ نحتاج كود نسك مثل NG-44kRzeGb.", "error");
-    messageInput.focus();
-    return;
-  }
-
-  if (!consentInput.checked) {
-    setFormMessage("يرجى الموافقة على التسجيل العلني قبل المتابعة.", "error");
-    consentInput.focus();
-    return;
-  }
-
-  let submittedCodes;
-  try {
-    submittedCodes = getSubmittedCodes();
-  } catch {
-    setFormMessage("تعذّر الوصول إلى التخزين المحلي؛ تحقق من إعدادات المتصفح وحاول مجدداً.", "error");
-    return;
-  }
-
-  if (submittedCodes.some((savedCode) => savedCode.toLowerCase() === code.toLowerCase())) {
-    setFormMessage("تم تسجيل دعمك لهذا الكود مسبقاً، جزاك الله خيراً.", "error");
-    return;
-  }
-
-  if (!endpoint) {
-    setFormMessage("خدمة التسجيل غير مهيأة بعد. يرجى المحاولة لاحقاً.", "error");
-    return;
-  }
-
-  submitButton.disabled = true;
-  submitButton.querySelector("span").textContent = "جارٍ التسجيل...";
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "تعذّر تسجيل الدعم.");
-
-    localStorage.setItem(storageKey, JSON.stringify([...submittedCodes, code]));
-    setFormMessage("تم تسجيل دعمك بنجاح، بارك الله فيك!", "success");
-    messageInput.value = "";
-    consentInput.checked = false;
-    updatePreview();
-    await loadCodes();
-  } catch (error) {
-    setFormMessage(error.message || "تعذّر الاتصال بالخدمة. تحقق من اتصالك وحاول مجدداً.", "error");
+    // Optimistically prepend the new card
+    const currentCodes = Array.from($list.querySelectorAll(".code-card")).map((el) => ({
+      code: el.querySelector(".code-card__code").textContent,
+      url: el.querySelector(".code-card__open").href,
+      createdAt: new Date().toISOString(),
+    }));
+    renderCodes([
+      { code, url: data.url || "#", createdAt: new Date().toISOString() },
+      ...currentCodes,
+    ]);
+  } catch (err) {
+    console.error("[submit]", err);
+    setPill("error", "فشل التسجيل");
+    showMessage("error", err.message || "تعذّر إكمال الطلب. حاول مرة أخرى بعد قليل.");
   } finally {
-    submitButton.disabled = false;
-    submitButton.querySelector("span").textContent = "تسجيل الدعم";
+    setLoading(false);
+    // Reset pill after a moment
+    setTimeout(() => {
+      if ($pill.dataset.state === "success") setPill("idle", "جاهز");
+    }, 3000);
   }
 });
 
-updatePreview();
+// ⌨️ Clear aria-invalid on input
+$input.addEventListener("input", () => {
+  if ($input.hasAttribute("aria-invalid")) $input.removeAttribute("aria-invalid");
+});
+
+// 🏁 Init
 loadCodes();
