@@ -5,11 +5,14 @@ const API_REGISTER =
 
 const API_CODES = API_REGISTER.replace(/\/support\/?$/, '/codes');
 
-// ⚠️ عدّل رابط صفحتك على فيسبوك
-const FACEBOOK_URL = 'https://www.facebook.com/mohamedabofayz';
+// ⚠️ ضع رابط صفحتك على فيسبوك
+const FACEBOOK_URL = 'https://www.facebook.com/p/mohamedabofayz';
 
 const STORAGE_KEY = 'nsk-used-codes';
 const SWIPE_THRESHOLD = 110;
+
+/* ================= Debug helper ================= */
+const log = (...args) => console.log('[NSK]', ...args);
 
 /* ================= Code extraction ================= */
 const CODE_PATTERNS = [
@@ -54,14 +57,33 @@ const $tplCode    = document.getElementById('tpl-code-card');
 const $tplSupport = document.getElementById('tpl-support-card');
 const $tplEmpty   = document.getElementById('tpl-empty');
 
+log('DOM ready', { $deck, $tplCode, $tplSupport });
+
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* ================= Deck state ================= */
-let cards = [];   // array of { el, type, code?, url? }
+let cards = [];
 let topIndex = 0;
+
+/* ================= Loading skeleton ================= */
+function showSkeleton() {
+  $deck.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const s = document.createElement('div');
+    s.className = 'card skeleton-card';
+    s.style.cssText = `
+      background: linear-gradient(90deg, #F4EFE4 0%, #FAF7F0 50%, #F4EFE4 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+    `;
+    $deck.appendChild(s);
+  }
+  $actions.hidden = true;
+}
 
 /* ================= Build deck ================= */
 function buildDeck(codeList) {
+  log('buildDeck called with', codeList.length, 'codes');
   $deck.innerHTML = '';
   cards = [];
   topIndex = 0;
@@ -71,7 +93,6 @@ function buildDeck(codeList) {
 
   codeList.forEach((c, i) => {
     items.push({ type: 'code', ...c });
-    // Insert support card after 2nd code (in the middle)
     if (i === 1) items.push({ type: 'support' });
   });
   if (!items.some(x => x.type === 'support')) {
@@ -89,41 +110,38 @@ function buildDeck(codeList) {
       const cta = el.querySelector('.card__cta');
       cta.href = item.url || '#';
 
-      // Detect already-used
       if (used.has(item.code)) el.dataset.used = 'true';
 
-      // CTA click = open + swipe right
+      // CTA click → browser opens the link, we mark + swipe after a beat
       cta.addEventListener('click', (e) => {
-        if (!el.dataset.url) { e.preventDefault(); return; }
-        // Let browser open, then mark
+        if (!el.dataset.url || el.dataset.url === '#') { e.preventDefault(); return; }
+        markUsed(item.code);
         setTimeout(() => {
-          if (el.dataset.top === 'true') swipeCard(el, 'right');
-        }, 50);
+          if (el.dataset.top === 'true') swipeCard(el, 'right', /* open */ false);
+        }, 100);
       });
 
-      // pointer drag
       attachDrag(el);
-
       cards.push({ el, type: 'code', code: item.code, url: item.url });
     } else {
       const el = $tplSupport.content.firstElementChild.cloneNode(true);
       el.querySelector('.support__cta').href = FACEBOOK_URL;
       el.querySelector('.support__cta').addEventListener('click', () => {
         setTimeout(() => {
-          if (el.dataset.top === 'true') swipeCard(el, 'right');
-        }, 50);
+          if (el.dataset.top === 'true') swipeCard(el, 'right', false);
+        }, 100);
       });
       attachDrag(el);
       cards.push({ el, type: 'support' });
     }
-
     $deck.appendChild(el);
   });
 
   renderStack();
+  log('buildDeck finished, cards:', cards.length);
 }
 
-/* ================= Stack rendering ================= */
+/* ================= Render stack ================= */
 function renderStack() {
   const total = cards.length;
 
@@ -131,11 +149,7 @@ function renderStack() {
     const offset = i - topIndex;
     const el = c.el;
 
-    if (offset < 0) {
-      el.style.display = 'none';
-      return;
-    }
-    if (offset > 2) {
+    if (offset < 0 || offset > 2) {
       el.style.display = 'none';
       return;
     }
@@ -148,9 +162,7 @@ function renderStack() {
       el.dataset.top = 'true';
     } else {
       el.style.zIndex = 100 - offset;
-      const scale = 1 - offset * 0.05;
-      const ty = offset * 14;
-      el.style.transform = `translateY(${ty}px) scale(${scale})`;
+      el.style.transform = `translateY(${offset * 14}px) scale(${1 - offset * 0.05})`;
       el.style.opacity = 1 - offset * 0.12;
       el.dataset.top = 'false';
     }
@@ -165,22 +177,20 @@ function renderStack() {
   }
 }
 
-/* ================= Drag handlers ================= */
+/* ================= Drag ================= */
 function attachDrag(el) {
   let dragging = false;
   let startX = 0, startY = 0, dx = 0, dy = 0;
-  let pid = null;
 
   const onDown = (e) => {
     if (el.dataset.top !== 'true') return;
     if (e.target.closest('a, button')) return;
     dragging = true;
-    pid = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
     dx = 0; dy = 0;
     el.dataset.dragging = 'true';
-    try { el.setPointerCapture(pid); } catch {}
+    try { el.setPointerCapture(e.pointerId); } catch {}
   };
 
   const onMove = (e) => {
@@ -189,7 +199,6 @@ function attachDrag(el) {
     dy = e.clientY - startY;
     const rot = dx * 0.06;
     el.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
-
     if (dx > 30) el.dataset.swipe = 'right';
     else if (dx < -30) el.dataset.swipe = 'left';
     else delete el.dataset.swipe;
@@ -201,12 +210,9 @@ function attachDrag(el) {
     el.dataset.dragging = 'false';
     delete el.dataset.swipe;
 
-    if (dx > SWIPE_THRESHOLD)      swipeCard(el, 'right');
-    else if (dx < -SWIPE_THRESHOLD) swipeCard(el, 'left');
-    else {
-      // Spring back
-      el.style.transform = '';
-    }
+    if (dx > SWIPE_THRESHOLD)        swipeCard(el, 'right');
+    else if (dx < -SWIPE_THRESHOLD)  swipeCard(el, 'left');
+    else el.style.transform = '';
   };
 
   el.addEventListener('pointerdown', onDown);
@@ -215,9 +221,21 @@ function attachDrag(el) {
   el.addEventListener('pointercancel', onUp);
 }
 
-/* ================= Swipe out ================= */
-function swipeCard(el, direction) {
+/* ================= Swipe ================= */
+function swipeCard(el, direction, shouldOpen = true) {
   if (el.dataset.top !== 'true') return;
+  const data = cards.find(c => c.el === el);
+  if (!data) return;
+
+  // Open URL only once, directly in gesture chain (avoids popup blocker)
+  if (direction === 'right' && shouldOpen && data.type === 'code'
+      && data.url && data.url !== '#') {
+    window.open(data.url, '_blank', 'noopener');
+  }
+
+  if (direction === 'right' && data.type === 'code' && data.code) {
+    markUsed(data.code);
+  }
 
   const tx = direction === 'right' ? 800 : -800;
   const rot = direction === 'right' ? 32 : -32;
@@ -226,18 +244,13 @@ function swipeCard(el, direction) {
   el.style.transform = `translate(${tx}px, 40px) rotate(${rot}deg)`;
   el.style.opacity = 0;
 
-  const cardData = cards.find(c => c.el === el);
-  if (direction === 'right' && cardData?.type === 'code' && cardData.code) {
-    markUsed(cardData.code);
-  }
-
   setTimeout(() => {
     topIndex++;
     renderStack();
   }, 320);
 }
 
-/* ================= Actions buttons ================= */
+/* ================= Buttons ================= */
 $skipBtn.addEventListener('click', () => {
   const top = cards[topIndex];
   if (top) swipeCard(top.el, 'left');
@@ -245,36 +258,32 @@ $skipBtn.addEventListener('click', () => {
 
 $openBtn.addEventListener('click', () => {
   const top = cards[topIndex];
-  if (!top) return;
-
-  if (top.type === 'code' && top.url) {
-    window.open(top.url, '_blank', 'noopener');
-  }
-  swipeCard(top.el, 'right');
+  if (top) swipeCard(top.el, 'right');
 });
 
-/* ================= Format date ================= */
+/* ================= Date format ================= */
 function formatDate(value) {
   if (!value) return 'الآن';
   try {
     return new Intl.DateTimeFormat('ar', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
+      dateStyle: 'medium', timeStyle: 'short',
     }).format(new Date(value));
   } catch { return ''; }
 }
 
-/* ================= Load codes ================= */
+/* ================= Load ================= */
 async function loadCodes() {
+  showSkeleton();
+  log('Loading codes from', API_CODES);
   try {
     const res = await fetch(API_CODES, { headers: { Accept: 'application/json' } });
+    log('Response', res.status);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const list = Array.isArray(data.codes) ? data.codes : [];
     buildDeck(list);
   } catch (err) {
-    console.warn('[loadCodes]', err);
-    // Demo fallback so the UI is always usable
+    console.warn('[loadCodes] failed → demo:', err.message);
     buildDeck([
       { code: 'NSK-DEMO-0001', url: 'https://example.com/code/1', createdAt: new Date().toISOString() },
       { code: 'NSK-DEMO-0002', url: 'https://example.com/code/2', createdAt: new Date().toISOString() },
@@ -283,7 +292,7 @@ async function loadCodes() {
   }
 }
 
-/* ================= Add-form submit ================= */
+/* ================= Form ================= */
 function showMsg(state, text) {
   $msg.dataset.state = state;
   $msg.textContent = text;
@@ -298,9 +307,7 @@ function setLoading(on) {
   $input.disabled = on;
 }
 
-$input.addEventListener('input', () => {
-  $input.removeAttribute('aria-invalid');
-});
+$input.addEventListener('input', () => $input.removeAttribute('aria-invalid'));
 
 $form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -309,7 +316,7 @@ $form.addEventListener('submit', async (e) => {
   const raw = $input.value;
   if (!raw.trim()) {
     $input.setAttribute('aria-invalid', 'true');
-    showMsg('error', 'الرجاء لصق الكود أو رسالة التحدي أولًا.');
+    showMsg('error', 'الرجاء لصق الكود أولًا.');
     $input.focus();
     return;
   }
@@ -322,7 +329,7 @@ $form.addEventListener('submit', async (e) => {
   }
 
   setLoading(true);
-  showMsg('success', 'جارٍ التحقق من الكود…');
+  showMsg('success', 'جارٍ التحقق…');
 
   try {
     const res = await fetch(API_REGISTER, {
@@ -331,42 +338,24 @@ $form.addEventListener('submit', async (e) => {
       body: JSON.stringify({ code, message: raw }),
     });
     const data = await res.json().catch(() => ({}));
-
     if (!res.ok || data.ok === false) {
       throw new Error(data.error || `فشل الطلب (${res.status})`);
     }
 
-    // Add the new code to the top of the deck
-    const newCard = {
-      code,
-      url: data.url || '#',
-      createdAt: new Date().toISOString(),
-    };
-    cards.unshift({
-      el: null, // will be recreated below
-      type: 'code',
-      code,
-      url: newCard.url,
-    });
-    // Simplest: rebuild with new code
-    const existing = cards
-      .filter(c => c.type === 'code' && c.el)
-      .map(c => ({
-        code: c.code,
-        url: c.url,
-        createdAt: new Date().toISOString(),
-      }));
-    buildDeck([newCard, ...existing]);
-
     $input.value = '';
     showMsg('success', `تم تسجيل دعمك للكود ${code}. شكرًا لك!`);
 
-    // Scroll to deck
-    document.querySelector('.swiper')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Prepend new card
+    const existing = cards
+      .filter(c => c.type === 'code' && c.el)
+      .map(c => ({ code: c.code, url: c.url, createdAt: new Date().toISOString() }));
+    buildDeck([{ code, url: data.url || '#', createdAt: new Date().toISOString() }, ...existing]);
+
+    document.querySelector('.swiper')?.scrollIntoView({ behavior: 'smooth' });
 
   } catch (err) {
     console.error('[submit]', err);
-    showMsg('error', err.message || 'تعذّر إكمال الطلب. حاول مرة أخرى.');
+    showMsg('error', err.message || 'تعذّر إكمال الطلب.');
   } finally {
     setLoading(false);
   }
