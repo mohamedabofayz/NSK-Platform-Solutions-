@@ -47,11 +47,6 @@
           <span id="char-count">٠ / ٤٠٠٠</span>
         </div>
 
-        <div class="privacy-note">
-          <span class="privacy-icon" aria-hidden="true">i</span>
-          <p>سيُسجّل الكود ووقت الإرسال علناً. يستخدم Cloudflare عنوان الاتصال للحد من المحاولات؛ لا يُرسل إلى GitHub.</p>
-        </div>
-
         <label class="consent-row" for="consent">
           <input id="consent" type="checkbox" required>
           <span>أوافق على تسجيل الكود ووقت الإرسال بشكل علني.</span>
@@ -73,8 +68,14 @@
           <h2 id="codes-title">أكواد الأصدقاء</h2>
         </div>
         <p id="codes-status" role="status" aria-live="polite">جارٍ تحميل الأكواد...</p>
+        <div class="codes-controls" aria-label="التنقل بين البطاقات">
+          <button id="codes-prev" class="codes-control" type="button" aria-label="البطاقة السابقة">السابق</button>
+          <button id="codes-next" class="codes-control" type="button" aria-label="البطاقة التالية">التالي</button>
+        </div>
       </div>
-      <ul id="codes-list" class="codes-list"></ul>
+      <div id="codes-viewport" class="codes-viewport" tabindex="0" aria-label="بطاقات أكواد نسك ومتابعة فيسبوك">
+        <ul id="codes-list" class="codes-list"></ul>
+      </div>
     </section>
   </main>
 
