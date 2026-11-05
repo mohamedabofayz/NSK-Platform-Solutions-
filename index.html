@@ -1,89 +1,135 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f5ee">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="سجّل دعمك لتحدي نسك عبر منصة NSK Platform Solutions — التحقق من الكود تلقائيًا وتسجيل الدعم في خطوة واحدة." />
+  <meta name="theme-color" content="#234b39" />
+  <title>NSK Platform Solutions — سجّل دعمك</title>
   <meta name="api-endpoint" content="https://nusuk-code-tracker.mahamedabofayz.workers.dev/support">
-  <title>متتبع أكواد تحدي نسك</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="./" aria-label="متتبع تحدي نسك، الصفحة الرئيسية">
-      <span class="brand-mark" aria-hidden="true">ن</span>
-      <span>تحدي نسك <span class="brand-light">/ تتبّع الدعم</span></span>
-    </a>
-    <span class="edition">١٠٠ رحلة عمرة مجانية</span>
-  </header>
+  <div class="page">
+    <!-- ============ Header ============ -->
+    <header class="site-header">
+      <a href="./" class="brand" aria-label="NSK Platform Solutions — الصفحة الرئيسية">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 6 2 12l6 6" />
+            <path d="m16 6 6 6-6 6" />
+          </svg>
+        </span>
+        <span class="brand-name">NSK Platform Solutions</span>
+      </a>
+      <nav class="site-nav" aria-label="التنقل الرئيسي">
+        <a href="#community">أكواد الأصدقاء</a>
+        <a href="#how">كيف يعمل</a>
+      </nav>
+    </header>
 
-  <main>
-    <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> مساحة الدعم المجتمعي</p>
-      <h1 id="page-title">كل مشاركة<br><span>تقرّب الرحلة.</span></h1>
-      <p class="intro-copy">ألصق رسالة التحدي أو كود نسك، وسنتولى تسجيل دعمك بخطوة واحدة.</p>
-      <div class="journey-note" aria-label="طريقة التسجيل">
-        <span class="note-number">١</span><span>ألصق الكود</span>
-        <span class="note-rule" aria-hidden="true"></span>
-        <span class="note-number">٢</span><span>يُسجّل دعمك</span>
-      </div>
-    </section>
-
-    <section class="entry-panel" aria-labelledby="form-title">
-      <div class="panel-heading">
-        <div>
-          <p class="panel-kicker">تسجيل دعم جديد</p>
-          <h2 id="form-title">شارك كود نسك</h2>
+    <main>
+      <!-- ============ Hero ============ -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">تحدي نسك 2026</p>
+          <h1 id="hero-title">
+            سجّل دعمك،<br />
+            <span class="accent">بخطوة واحدة.</span>
+          </h1>
+          <p class="lead">
+            الصق كود نسك أو رسالة التحدي، وسنتحقق من الكود ونسجّل دعمك فورًا.
+            بدون تسجيل، بدون تعقيد.
+          </p>
+          <ol class="steps" aria-label="خطوات التسجيل">
+            <li class="step"><span class="step__num" aria-hidden="true">1</span>الصق الكود</li>
+            <li class="step"><span class="step__num" aria-hidden="true">2</span>تحقق تلقائي</li>
+            <li class="step"><span class="step__num" aria-hidden="true">3</span>سجّل الدعم</li>
+          </ol>
         </div>
-        <span class="panel-index" aria-hidden="true">01 — 100</span>
-      </div>
 
-      <form id="support-form" novalidate>
-        <label for="message">رسالة التحدي أو الكود</label>
-        <textarea id="message" name="message" rows="5" maxlength="4000" autocomplete="off" placeholder="الصق رسالة التحدي أو الكود هنا، مثل NG-44kRzeGb" required></textarea>
-        <div class="field-meta">
-          <span id="extract-status" aria-live="polite">سيظهر الكود المستخرج هنا</span>
-          <span id="char-count">٠ / ٤٠٠٠</span>
+        <!-- Entry panel -->
+        <section class="entry-panel" aria-labelledby="entry-title">
+          <div class="entry-panel__header">
+            <h2 id="entry-title">تسجيل الدعم</h2>
+            <span class="pill" id="status-pill" data-state="idle" aria-live="polite">جاهز</span>
+          </div>
+
+          <form id="entry-form" novalidate>
+            <label for="challenge-input">كود نسك أو رسالة التحدي</label>
+            <textarea
+              id="challenge-input"
+              name="challenge"
+              rows="5"
+              required
+              spellcheck="false"
+              autocomplete="off"
+              aria-describedby="challenge-hint form-message"
+              placeholder="مثال: كود التحدي NSK-2026-A7X9 أو الصق الرسالة كاملة…"
+            ></textarea>
+            <p class="field-hint" id="challenge-hint">
+              نستخرج الكود تلقائيًا من الرسالة. لا حاجة لقص أي شيء.
+            </p>
+
+            <button type="submit" class="btn btn--primary" id="submit-btn">
+              <span class="btn__label">تسجيل الدعم</span>
+              <span class="btn__spinner" hidden aria-hidden="true"></span>
+            </button>
+
+            <p class="form-message" id="form-message" data-state="info" role="status" aria-live="polite" hidden></p>
+          </form>
+        </section>
+      </section>
+
+      <!-- ============ Community codes ============ -->
+      <section id="community" class="community" aria-labelledby="community-title">
+        <div class="section-head">
+          <h2 id="community-title">أكواد الأصدقاء</h2>
+          <span class="count" id="community-count" aria-live="polite"></span>
         </div>
+        <ul id="code-list" class="code-list" aria-live="polite" aria-busy="true">
+          <!-- Populated by app.js -->
+        </ul>
+      </section>
+    </main>
 
-        <label class="consent-row" for="consent">
-          <input id="consent" type="checkbox" required>
-          <span>أوافق على تسجيل الكود ووقت الإرسال بشكل علني.</span>
-        </label>
+    <footer class="site-footer">
+      <span>© <span id="year"></span> NSK Platform Solutions</span>
+      <span>صُنع بشغف لدعم المجتمع</span>
+    </footer>
+  </div>
 
-        <button id="submit-button" type="submit">
-          <span>تسجيل الدعم</span>
-          <span class="button-arrow" aria-hidden="true">←</span>
-        </button>
-        <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
-      </form>
-      <div class="panel-footer"><span>لا حسابات. لا بيانات شخصية.</span><span>نسك · ٢٠٢٦</span></div>
-    </section>
-
-    <section class="codes-section" aria-labelledby="codes-title">
-      <div class="codes-heading">
-        <div>
-          <p class="panel-kicker">مشاركة المجتمع</p>
-          <h2 id="codes-title">أكواد الأصدقاء</h2>
+  <!-- ============ Code card template ============ -->
+  <template id="code-card-template">
+    <li class="code-card">
+      <div class="code-card__main">
+        <code class="code-card__code"></code>
+        <div class="code-card__meta">
+          <span class="code-card__date"></span>
         </div>
-        <p id="codes-status" role="status" aria-live="polite">جارٍ تحميل الأكواد...</p>
       </div>
-      <div class="codes-summary" aria-label="إحصاءات الأكواد">
-        <div class="codes-stat"><span>إجمالي الأكواد</span><strong id="codes-total">—</strong></div>
-        <div class="codes-stat"><span>المتاح لك</span><strong id="codes-available">—</strong></div>
-        <div class="codes-stat"><span>تم استخدامه</span><strong id="codes-used">—</strong></div>
-        <p>فتح الرابط لا يخفي الكود. اختر «تم الاستخدام» عند الانتهاء.</p>
+      <div class="code-card__actions">
+        <a class="btn btn--ghost btn--sm code-card__open" target="_blank" rel="noopener noreferrer" aria-label="فتح رابط الكود في تبويب جديد">فتح الرابط</a>
+        <button type="button" class="btn btn--ghost btn--sm code-card__use">تم الاستخدام</button>
       </div>
-      <div class="codes-viewport" aria-label="بطاقات أكواد نسك ومتابعة فيسبوك">
-        <ul id="codes-list" class="codes-list"></ul>
-      </div>
-    </section>
-  </main>
+    </li>
+  </template>
 
-  <footer class="site-footer">
-    <span>مبادرة مجتمعية لدعم المشاركين</span>
-    <span class="footer-mark" aria-hidden="true">ب</span>
-  </footer>
+  <!-- ============ Skeleton template ============ -->
+  <template id="skeleton-template">
+    <li class="skeleton-card" aria-hidden="true">
+      <div class="skeleton skeleton--code"></div>
+      <div class="skeleton skeleton--meta"></div>
+      <div class="skeleton skeleton--btn"></div>
+    </li>
+  </template>
+
+  <script src="app.js" type="module"></script>
 </body>
 </html>
