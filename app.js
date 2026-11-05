@@ -100,8 +100,9 @@ function buildDeck(codeList) {
   }
 
   items.forEach((item, idx) => {
+    let el;
     if (item.type === 'code') {
-      const el = $tplCode.content.firstElementChild.cloneNode(true);
+      el = $tplCode.content.firstElementChild.cloneNode(true);
       el.dataset.code = item.code;
       el.dataset.url = item.url || '';
       el.querySelector('.card__code').textContent = item.code;
@@ -122,7 +123,7 @@ function buildDeck(codeList) {
       attachDrag(el);
       cards.push({ el, type: 'code', code: item.code, url: item.url });
     } else {
-      const el = $tplSupport.content.firstElementChild.cloneNode(true);
+      el = $tplSupport.content.firstElementChild.cloneNode(true);
       el.querySelector('.support__cta').href = FACEBOOK_URL;
       el.querySelector('.support__cta').addEventListener('click', () => {
         setTimeout(() => {
