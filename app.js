@@ -5,7 +5,10 @@ const submitButton = document.querySelector("#submit-button");
 const formMessage = document.querySelector("#form-message");
 const extractStatus = document.querySelector("#extract-status");
 const charCount = document.querySelector("#char-count");
+const codesList = document.querySelector("#codes-list");
+const codesStatus = document.querySelector("#codes-status");
 const endpoint = document.querySelector('meta[name="api-endpoint"]')?.content.trim();
+const codesEndpoint = endpoint?.replace(/\/support\/?$/, "/codes");
 const storageKey = "nusuk-supported-codes-v1";
 const codePattern = /\bNG-[A-Za-z0-9]{8,}\b/i;
 
@@ -21,6 +24,55 @@ function setFormMessage(text, state = "") {
 function getSubmittedCodes() {
   const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
   return Array.isArray(stored) ? stored : [];
+}
+
+async function loadCodes() {
+  codesList.replaceChildren();
+  if (!codesEndpoint || codesEndpoint === endpoint) {
+    codesStatus.textContent = "قائمة الأكواد غير مهيأة حالياً.";
+    return;
+  }
+
+  codesStatus.textContent = "جارٍ تحميل الأكواد...";
+  try {
+    const response = await fetch(codesEndpoint);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "تعذّر تحميل الأكواد.");
+
+    const uniqueCodes = new Map();
+    for (const entry of result.codes || []) {
+      if (typeof entry.code !== "string" || !/^NG-[A-Za-z0-9]{8,}$/i.test(entry.code)) continue;
+      if (!uniqueCodes.has(entry.code.toLowerCase())) uniqueCodes.set(entry.code.toLowerCase(), entry.code);
+    }
+
+    const items = [...uniqueCodes.values()].map((code) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      const codeLabel = document.createElement("span");
+      const actionLabel = document.createElement("span");
+      const url = new URL("https://services.nusuk.sa/app");
+      url.searchParams.set("p", "27");
+      url.searchParams.set("id", code);
+      link.className = "code-link";
+      link.href = url.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      codeLabel.className = "code-value";
+      codeLabel.textContent = code;
+      actionLabel.className = "code-action";
+      actionLabel.textContent = "فتح في نسك ↗";
+      link.append(codeLabel, actionLabel);
+      item.append(link);
+      return item;
+    });
+
+    codesList.replaceChildren(...items);
+    codesStatus.textContent = items.length
+      ? `${new Intl.NumberFormat("ar").format(items.length)} كود متاح`
+      : "لا توجد أكواد مسجلة بعد.";
+  } catch {
+    codesStatus.textContent = "تعذّر تحميل الأكواد. حاول تحديث الصفحة.";
+  }
 }
 
 function updatePreview() {
@@ -86,6 +138,7 @@ form.addEventListener("submit", async (event) => {
     messageInput.value = "";
     consentInput.checked = false;
     updatePreview();
+    await loadCodes();
   } catch (error) {
     setFormMessage(error.message || "تعذّر الاتصال بالخدمة. تحقق من اتصالك وحاول مجدداً.", "error");
   } finally {
@@ -95,3 +148,4 @@ form.addEventListener("submit", async (event) => {
 });
 
 updatePreview();
+loadCodes();

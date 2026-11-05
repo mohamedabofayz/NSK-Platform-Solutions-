@@ -12,7 +12,7 @@ const env = {
 };
 
 function makeRequest(body, options = {}) {
-  return new Request("https://worker.example/support", {
+  return new Request(`https://worker.example${options.path || "/support"}`, {
     method: options.method || "POST",
     headers: { Origin: options.origin || origin, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -28,7 +28,26 @@ test("answers browser CORS preflight without a response body", async () => {
   const response = await worker.fetch(makeRequest(undefined, { method: "OPTIONS" }), env);
   assert.equal(response.status, 204);
   assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
+  assert.match(response.headers.get("Access-Control-Allow-Methods"), /GET/);
   assert.equal(await response.text(), "");
+});
+
+test("lists unique Nusuk links from recorded support issues", async (context) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify([
+    { title: "دعم نسك: NG-44kRzeGb" },
+    { title: "دعم نسك: ng-44KRzeGB" },
+    { title: "Unrelated issue" },
+  ]), { status: 200 });
+  context.after(() => { globalThis.fetch = originalFetch; });
+
+  const response = await worker.fetch(makeRequest(undefined, { method: "GET", path: "/codes" }), env);
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(result.codes, [{
+    code: "NG-44kRzeGb",
+    url: "https://services.nusuk.sa/app?p=27&id=NG-44kRzeGb",
+  }]);
 });
 
 test("rejects malformed codes without calling GitHub", async () => {
